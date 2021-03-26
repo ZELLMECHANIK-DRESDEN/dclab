@@ -6,6 +6,7 @@ import json
 import pathlib
 import platform
 import shutil
+import tempfile
 import warnings
 
 import h5py
@@ -14,6 +15,7 @@ import numpy as np
 from .rtdc_dataset import check_dataset, export, fmt_tdms, new_dataset, \
     write_hdf5
 from .rtdc_dataset.check import IntegrityChecker
+from . import correct
 from . import definitions as dfn
 from . import util
 from ._version import version
@@ -132,7 +134,7 @@ def print_violation(string):
     print_info("\033[31m{}".format(string))
 
 
-def compress(path_out=None, path_in=None, force=False):
+def compress(path_out=None, path_in=None, force=False, correct_offset=False):
     """Create a new dataset with all features compressed losslessly"""
     if path_out is None or path_in is None:
         parser = compress_parser()
@@ -140,6 +142,7 @@ def compress(path_out=None, path_in=None, force=False):
         path_in = args.input
         path_out = args.output
         force = args.force
+        correct_offset = args.correct_offset
 
     path_in = pathlib.Path(path_in)
     path_out = pathlib.Path(path_out)
@@ -153,12 +156,23 @@ def compress(path_out=None, path_in=None, force=False):
     if not force:
         # Check whether the input file is already compressed
         # (This is not done in force-mode)
-        ic = IntegrityChecker(path_in)
-        cue = ic.check_compression()[0]
-        if cue.data["uncompressed"] == 0:
-            # we are done here
-            shutil.copy2(path_in, path_out)  # copy with metadata
-            return
+        with IntegrityChecker(path_in) as ic:
+            cue = ic.check_compression()[0]
+            if cue.data["uncompressed"] == 0:
+                # we are done here
+                # correct.offset implicitly uses shutil.copy2
+                if correct_offset:
+                    correct.offset(path_in=path_in, path_out=path_out)
+                else:
+                    shutil.copy2(path_in, path_out)  # copy with metadata
+                return
+
+    if correct_offset:
+        # Cache file with corrected offset
+        tmp_dir = tempfile.mkdtemp()
+        temp_path = pathlib.Path(tmp_dir, path_in.name)
+        correct.offset(path_in=path_in, path_out=temp_path)
+        path_in = temp_path
 
     logs = {}
 
@@ -184,6 +198,9 @@ def compress(path_out=None, path_in=None, force=False):
                           compression="gzip"):
         pass
 
+    if correct_offset:
+        shutil.rmtree(tmp_dir)
+
 
 def compress_parser():
     descr = "Create a compressed version of an .rtdc file. This can be " \
@@ -200,6 +217,12 @@ def compress_parser():
                         help='Force compression, even if the input dataset '
                              + 'is already compressed.')
     parser.set_defaults(force=False)
+    parser.add_argument('--correct-offset',
+                        dest='correct_offset',
+                        action='store_true',
+                        help='If \'True\' applies offset correction to '
+                             + 'fl?_max values')
+    parser.set_defaults(correct_offset=False)
     return parser
 
 
@@ -254,7 +277,7 @@ def condense_parser():
     return parser
 
 
-def join(path_out=None, paths_in=None, metadata=None):
+def join(path_out=None, paths_in=None, metadata=None, correct_offset=False):
     """Join multiple RT-DC measurements into a single .rtdc file"""
     if metadata is None:
         metadata = {"experiment": {"run index": 1}}
@@ -263,6 +286,7 @@ def join(path_out=None, paths_in=None, metadata=None):
         args = parser.parse_args()
         paths_in = args.input
         path_out = args.output
+        correct_offset = args.correct_offset
 
     if len(paths_in) < 2:
         raise ValueError("At least two input files must be specified!")
@@ -273,6 +297,13 @@ def join(path_out=None, paths_in=None, metadata=None):
 
     if path_out.exists():
         raise ValueError("Output file '{}' already exists!".format(path_out))
+
+    if correct_offset:
+        # Store actual 'path_out' for saving the corrected file later
+        correct_path_out = path_out
+        tmp_dir = tempfile.mkdtemp()
+        temp_path = pathlib.Path(tmp_dir, path_out.name)
+        path_out = temp_path
 
     # Determine input file order
     key_paths = []
@@ -349,6 +380,10 @@ def join(path_out=None, paths_in=None, metadata=None):
                           compression="gzip"):
         pass
 
+    if correct_offset:
+        correct.offset(path_in=path_out, path_out=correct_path_out)
+        shutil.rmtree(tmp_dir)
+
 
 def join_parser():
     descr = "Join two or more RT-DC measurements. This will produce " \
@@ -359,6 +394,12 @@ def join_parser():
     parser = argparse.ArgumentParser(description=descr)
     parser.add_argument('input', metavar="INPUT", nargs="*", type=str,
                         help='Input paths (.tdms or .rtdc files)')
+    parser.add_argument('--correct-offset',
+                        dest='correct_offset',
+                        action='store_true',
+                        help='If \'True\' applies offset correction to '
+                             + 'fl?_max values')
+    parser.set_defaults(correct_offset=False)
     required_named = parser.add_argument_group('required named arguments')
     required_named.add_argument('-o', '--output', metavar="OUTPUT", type=str,
                                 help='Output path (.rtdc file)', required=True)
@@ -445,7 +486,7 @@ def skip_empty_image_events(ds, initial=True, final=True):
 
 def split(path_in=None, path_out=None, split_events=10000,
           skip_initial_empty_image=True, skip_final_empty_image=True,
-          ret_out_paths=False, verbose=False):
+          ret_out_paths=False, verbose=False, correct_offset=False):
     """Split a measurement file
 
     Parameters
@@ -464,6 +505,8 @@ def split(path_in=None, path_out=None, split_events=10000,
         If True, return the list of output file paths.
     verbose: bool
         If `True`, print messages to stdout
+    correct_offset: bool
+        If 'True', applies offset correction to fl?_max values
 
     Returns
     -------
@@ -480,10 +523,20 @@ def split(path_in=None, path_out=None, split_events=10000,
         skip_initial_empty_image = not args.include_empty_boundary_images
         skip_final_empty_image = not args.include_empty_boundary_images
         verbose = True
+        correct_offset = args.correct_offset
+
     if path_out in ["PATH_IN", None]:  # default to input directory
         path_out = path_in.parent
     path_in = pathlib.Path(path_in)
     path_out = pathlib.Path(path_out)
+
+    if correct_offset:
+        # Cache file with corrected offset
+        tmp_dir = tempfile.mkdtemp()
+        temp_path = pathlib.Path(tmp_dir, path_in.name)
+        correct.offset(path_in=path_in, path_out=temp_path)
+        path_in = temp_path
+
     logs = {"dclab-split": get_command_log(paths=[path_in])}
     paths_gen = []
     with warnings.catch_warnings(record=True) as w:
@@ -532,6 +585,9 @@ def split(path_in=None, path_out=None, split_events=10000,
                               compression="gzip"):
             pass
 
+    if correct_offset:
+        shutil.rmtree(tmp_dir)
+
     if ret_out_paths:
         return paths_gen
 
@@ -557,13 +613,18 @@ def split_parser():
                              + 'this option, if you wish to include these '
                              + 'events with empty image data.')
     parser.set_defaults(include_empty_boundary_images=False)
-
+    parser.add_argument('--correct-offset',
+                        dest='correct_offset',
+                        action='store_true',
+                        help='If \'True\' applies offset correction to '
+                             + 'fl?_max values')
+    parser.set_defaults(correct_offset=False)
     return parser
 
 
 def tdms2rtdc(path_tdms=None, path_rtdc=None, compute_features=False,
               skip_initial_empty_image=True, skip_final_empty_image=True,
-              verbose=False):
+              verbose=False, correct_offset=False):
     """Convert .tdms datasets to the hdf5-based .rtdc file format
 
     Parameters
@@ -586,6 +647,8 @@ def tdms2rtdc(path_tdms=None, path_rtdc=None, compute_features=False,
         final image is not included in the resulting .rtdc file.
     verbose: bool
         If `True`, print messages to stdout
+    correct_offset: bool
+        If 'True', applies offset correction to fl?_max values
     """
     if path_tdms is None or path_rtdc is None:
         parser = tdms2rtdc_parser()
@@ -597,6 +660,7 @@ def tdms2rtdc(path_tdms=None, path_rtdc=None, compute_features=False,
         skip_initial_empty_image = not args.include_empty_boundary_images
         skip_final_empty_image = not args.include_empty_boundary_images
         verbose = True
+        correct_offset = args.correct_offset
 
     if not path_tdms.suffix == ".tdms":
         raise ValueError("Please specify a .tdms file!")
@@ -619,6 +683,12 @@ def tdms2rtdc(path_tdms=None, path_rtdc=None, compute_features=False,
     else:
         files_tdms = [path_tdms]
         files_rtdc = [path_rtdc]
+
+    if correct_offset:
+        # Store original output paths
+        correct_files_rtdc = files_rtdc[:]
+        tmp_dir = tempfile.mkdtemp()
+        files_rtdc = [pathlib.Path(tmp_dir, el.name) for el in files_rtdc]
 
     for ii in range(len(files_tdms)):
         ff = pathlib.Path(files_tdms[ii])
@@ -686,6 +756,13 @@ def tdms2rtdc(path_tdms=None, path_rtdc=None, compute_features=False,
                                       compression="gzip"):
                     pass
 
+        if correct_offset:
+            path_out = correct_files_rtdc[ii]
+            correct.offset(path_in=fr, path_out=path_out)
+
+    if correct_offset:
+        shutil.rmtree(tmp_dir)
+
 
 def tdms2rtdc_parser():
     descr = "Convert RT-DC .tdms files to the hdf5-based .rtdc file format. " \
@@ -721,6 +798,12 @@ def tdms2rtdc_parser():
     parser.add_argument('rtdc_path', metavar="RTDC_PATH", type=str,
                         help='Output path (file or folder), existing data '
                              + 'will be overridden')
+    parser.add_argument('--correct-offset',
+                        dest='correct_offset',
+                        action='store_true',
+                        help='If \'True\' applies offset correction to '
+                             + 'fl?_max values')
+    parser.set_defaults(correct_offset=False)
     return parser
 
 

@@ -1,4 +1,5 @@
 0.33.2
+ - feat: add offset correction to cli-functions
  - fix: workaround for sporadic JSONDecodeError when accessing DCOR
  - ref: cleanup cli.py
  - ref: cleanup util.py and deprecate `hash_class` argument in

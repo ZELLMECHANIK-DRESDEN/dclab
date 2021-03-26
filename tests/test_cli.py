@@ -56,7 +56,7 @@ def test_compress_already_compressed():
     # just for the sake of comparison
     time.sleep(1)  # we need different time stamps in path_out2
     cli.compress(path_out=path_out2, path_in=path_in)
-    # this is is not trivial
+    # this is not trivial
     cli.compress(path_out=path_out3, path_in=path_out1)
 
     # the first two files should not be the same (dates are written, etc)
@@ -82,6 +82,33 @@ def test_compress_already_compressed_force():
     h1 = hashlib.md5(path_out1.read_bytes()).hexdigest()
     h2 = hashlib.md5(path_out2.read_bytes()).hexdigest()
     assert h1 != h2
+
+
+def test_compress_correct_offset():
+    """Testing if correction of offset works in compress-function"""
+    # Arrange
+    path_in = retrieve_data("rtdc_data_hdf5_rtfdc.zip")
+    # Compress with and without offset correction
+    path_out = path_in.with_name("compressed.rtdc")
+    path_out_nc = path_in.with_name("compressed_nc.rtdc")
+
+    with new_dataset(path_in) as ds:
+        fl_max_old = ds["fl1_max"]
+        fl_offset = min(np.min(ds["trace"]["fl1_raw"]), 1)
+
+    # Act
+    cli.compress(path_out=path_out, path_in=path_in, correct_offset=True)
+    cli.compress(path_out=path_out_nc, path_in=path_in, correct_offset=False)
+
+    # Assert
+    with new_dataset(path_out) as ds:
+        assert "baseline 1 offset" in ds.config["fluorescence"]
+        assert fl_offset == ds.config["fluorescence"]["baseline 1 offset"]
+        assert (ds["fl1_max"] == fl_max_old - (fl_offset-1)).all()
+
+    with new_dataset(path_out_nc) as ds_nc:
+        assert "baseline 1 offset" not in ds_nc.config["fluorescence"]
+        assert (ds_nc["fl1_max"] == fl_max_old).all()
 
 
 def test_join_tdms():
@@ -157,6 +184,35 @@ def test_join_times():
                            np.concatenate((ds0["time"], ds0["time"]+offset)),
                            rtol=0,
                            atol=.0001)
+
+
+def test_join_correct_offset():
+    """Testing if correction of offset works in compress-function"""
+    # Arrange
+    path_in = retrieve_data("rtdc_data_hdf5_rtfdc.zip")
+    # Join with and without offset correction
+    path_out = path_in.with_name("compressed.rtdc")
+    path_out_nc = path_in.with_name("compressed_nc.rtdc")
+
+    with h5py.File(path_in, 'r') as hf:
+        fl_max_old = hf["events"]["fl1_max"][:]
+        fl_offset = min(np.min(hf["events"]["trace"]["fl1_raw"][:]), 1)
+
+    # Act
+    cli.join(path_out=path_out, paths_in=[path_in, path_in],
+             correct_offset=True)
+    cli.join(path_out=path_out_nc, paths_in=[path_in, path_in],
+             correct_offset=False)
+
+    # Assert
+    with new_dataset(path_out) as ds:
+        assert "baseline 1 offset" in ds.config["fluorescence"]
+        assert fl_offset == ds.config["fluorescence"]["baseline 1 offset"]
+        assert (ds["fl1_max"][:len(ds)//2] == fl_max_old - (fl_offset-1)).all()
+
+    with new_dataset(path_out_nc) as ds_nc:
+        assert "baseline 1 offset" not in ds_nc.config["fluorescence"]
+        assert (ds_nc["fl1_max"][:len(ds_nc)//2] == fl_max_old).all()
 
 
 def test_repack_basic():
@@ -236,6 +292,36 @@ def test_split():
                     assert np.all(
                         ds[feat][ecount:ecount+len(di)] == di[feat]), feat
                 ecount += len(di)
+
+
+def test_split_correct_offset():
+    # Arrange
+    path_in = retrieve_data("rtdc_data_hdf5_rtfdc.zip")
+    path_out = path_in.with_name("split")
+    path_out_nc = path_in.with_name("split_nc")
+
+    path_out.mkdir()
+    path_out_nc.mkdir()
+
+    with h5py.File(path_in, 'r') as hf:
+        fl_offset = min(np.min(hf["events"]["trace"]["fl1_raw"][:]), 1)
+
+    # Act
+    paths = cli.split(path_in=path_in, path_out=path_out, split_events=3,
+                      ret_out_paths=True, correct_offset=True)
+    # do i need to time.sleep(1) here so the file names dont collide?
+    paths_nc = cli.split(path_in=path_in, path_out=path_out_nc, split_events=3,
+                         ret_out_paths=True, correct_offset=False)
+
+    # Assert
+    for path in paths:
+        with new_dataset(path) as ds:
+            assert "baseline 1 offset" in ds.config["fluorescence"]
+            assert fl_offset == ds.config["fluorescence"]["baseline 1 offset"]
+
+    for path in paths_nc:
+        with new_dataset(path) as ds:
+            assert "baseline 1 offset" not in ds.config["fluorescence"]
 
 
 def test_split_traces():
@@ -373,6 +459,34 @@ def test_tdms2rtdc_update_sample_per_events():
 
     with new_dataset(path_out) as ds2:
         assert ds2.config["fluorescence"]["samples per event"] == 566
+
+
+def test_tdms2rtdc_correct_offset():
+    # Arrange
+    path_in = retrieve_data("rtdc_data_traces_2flchan.zip")
+    path_out = path_in.with_name("out.rtdc")
+    path_out_nc = path_in.with_name("out_nc.rtdc")
+
+    with new_dataset(path_in) as ds:
+        fl_max_old = ds["fl2_max"]
+        fl_offset = min(np.min(ds["trace"]["fl2_raw"]), 1)
+
+    # Act
+    cli.tdms2rtdc(path_tdms=path_in, path_rtdc=path_out,
+                  correct_offset=True)
+    cli.tdms2rtdc(path_tdms=path_in, path_rtdc=path_out_nc,
+                  correct_offset=False)
+
+    # Assert
+    with new_dataset(path_out) as ds:
+        assert fl_offset == ds.config["fluorescence"]["baseline 2 offset"]
+        assert len(ds["fl2_max"]) == len(fl_max_old)
+        assert (ds["fl2_max"] == fl_max_old - (fl_offset-1)).all()
+        assert "baseline 2 offset" in ds.config["fluorescence"]
+
+    with new_dataset(path_out_nc) as ds_nc:
+        assert "baseline 2 offset" not in ds_nc.config["fluorescence"]
+        assert (ds_nc["fl2_max"] == fl_max_old).all()
 
 
 if __name__ == "__main__":
