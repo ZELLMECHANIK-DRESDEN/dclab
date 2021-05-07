@@ -37,13 +37,14 @@ import warnings
 import numpy as np
 
 from ...util import obj2bytes
+from ... import definitions as dfn
 
 
 class BadFeatureSizeWarning(UserWarning):
     pass
 
 
-class AncillaryFeature():
+class AncillaryFeature:
     #: All ancillary features registered
     features = []
     #: All feature names registered
@@ -203,6 +204,8 @@ class AncillaryFeature():
         if not isinstance(data_dict, dict):
             data_dict = {self.feature_name: data_dict}
         data_dict = AncillaryFeature.check_data_size(rtdc_ds, data_dict)
+        for key in data_dict:
+            dfn.check_feature_shape(self.feature_name, data_dict[key])
         return data_dict
 
     def hash(self, rtdc_ds):

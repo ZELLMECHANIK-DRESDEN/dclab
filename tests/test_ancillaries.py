@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 
 import dclab
-from dclab.rtdc_dataset.ancillaries import AncillaryFeature
+from dclab.rtdc_dataset.ancillaries.ancillary_feature import (
+    AncillaryFeature, BadFeatureSizeWarning)
 
 from helper_methods import (
     example_data_dict, retrieve_data, example_data_sets, calltracker)
@@ -182,6 +183,15 @@ def test_af_time():
     assert tt[0] == 0
     assert np.allclose(tt[1], 0.0385)
     assert np.all(np.diff(tt) > 0)
+
+
+def test_af_warning_from_check_data_size():
+    h5path = retrieve_data("rtdc_data_hdf5_rtfdc.zip")
+    with dclab.new_dataset(h5path) as ds:
+        data = np.arange(len(ds)//2)
+        data_dict = {"name1": data}
+        with pytest.warns(BadFeatureSizeWarning):
+            AncillaryFeature.check_data_size(ds, data_dict)
 
 
 if __name__ == "__main__":

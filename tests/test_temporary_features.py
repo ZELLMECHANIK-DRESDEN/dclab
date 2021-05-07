@@ -141,6 +141,7 @@ def test_register_after_loading():
     with h5py.File(h5path, "a") as h5:
         h5["events"]["fl1_mean"] = fl1_mean
     with dclab.new_dataset(h5path) as ds:
+        assert "fl1_mean" not in ds
         dclab.register_temporary_feature(feature="fl1_mean")
         assert "fl1_mean" in ds
 

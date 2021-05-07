@@ -2,8 +2,6 @@
 .. versionadded:: 0.33.0
 """
 
-import numpy as np
-
 from .. import definitions as dfn
 
 from .fmt_hierarchy import RTDC_Hierarchy
@@ -29,11 +27,7 @@ def deregister_temporary_feature(feature):
     if feature in _registered_temporary_features:
         label = dfn.get_feature_label(feature)
         _registered_temporary_features.remove(feature)
-        dfn.feature_names.remove(feature)
-        dfn.feature_labels.remove(label)
-        dfn.feature_name2label.pop(feature)
-        if feature in dfn.scalar_feature_names:
-            dfn.scalar_feature_names.remove(feature)
+        dfn.remove_dfn_feature_info(feature, label)
 
 
 def register_temporary_feature(feature, label=None, is_scalar=True):
@@ -49,30 +43,14 @@ def register_temporary_feature(feature, label=None, is_scalar=True):
     Parameters
     ----------
     feature: str
-        Feature name; allowed characters are lower-case lettersm
+        Feature name; allowed characters are lower-case letters,
         digits, and underscores
     label: str
         Feature label used e.g. for plotting
     is_scalar: bool
         Whether or not the feature is a scalar feature
     """
-    allowed_chars = "abcdefghijklmnopqrstuvwxyz_1234567890"
-    _feat = "".join([f for f in feature if f in allowed_chars])
-    if _feat != feature:
-        raise ValueError("`feature` must only contain lower-case characters, "
-                         "digits, and underscores; got '{}'!".format(feature))
-    if label is None:
-        label = "User defined feature {}".format(feature)
-    if dfn.feature_exists(feature):
-        raise ValueError("Feature '{}' already exists!".format(feature))
-
-    # Populate the new feature in all dictionaries and lists
-    # in `dclab.definitions`
-    dfn.feature_names.append(feature)
-    dfn.feature_labels.append(label)
-    dfn.feature_name2label[feature] = label
-    if is_scalar:
-        dfn.scalar_feature_names.append(feature)
+    _ = dfn.update_dfn_with_feature_info(feature, label, is_scalar)
     _registered_temporary_features.append(feature)
 
 
@@ -101,11 +79,5 @@ def set_temporary_feature(rtdc_ds, feature, data):
         raise ValueError("The temporary feature `data` must have same length "
                          "as the dataset. Expected length {}, got length "
                          "{}!".format(len(rtdc_ds), len(data)))
-    data = np.array(data)
-    if len(data.shape) == 1 and not dfn.scalar_feature_exists(feature):
-        raise ValueError("Feature '{}' is not a scalar feature, but a "
-                         "1D array was given for `data`!".format(feature))
-    elif len(data.shape) != 1 and dfn.scalar_feature_exists(feature):
-        raise ValueError("Feature '{}' is a scalar feature, but the `data` "
-                         "array is not 1D!".format(feature))
+    dfn.check_feature_shape(feature, data)
     rtdc_ds._usertemp[feature] = data

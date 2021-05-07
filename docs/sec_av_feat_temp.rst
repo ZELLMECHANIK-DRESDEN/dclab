@@ -94,7 +94,7 @@ There are two ways of adding temporary features to an .rtdc data file.
             ds.export.hdf5("/path/to/data_with_fl1_mean.rtdc",
                            features=ds.features_innate + ["fl1_mean"])
 
-If you whish to load the data at a later time point, you have to make sure
+If you wish to load the data at a later time point, you have to make sure
 that you register the temporary feature before trying to access it.
 This will not work::
 

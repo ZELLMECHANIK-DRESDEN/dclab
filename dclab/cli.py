@@ -12,8 +12,8 @@ import warnings
 import h5py
 import numpy as np
 
-from .rtdc_dataset import check_dataset, export, fmt_tdms, new_dataset, \
-    write_hdf5
+from .rtdc_dataset import (
+    check_dataset, export, fmt_tdms, new_dataset, write_hdf5)
 from .rtdc_dataset.check import IntegrityChecker
 from . import definitions as dfn
 from . import util
