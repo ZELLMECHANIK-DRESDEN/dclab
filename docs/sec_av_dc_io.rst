@@ -83,6 +83,32 @@ make use of the :class:`RTDCWriter <dclab.rtdc_dataset.writer.RTDCWriter>` class
     In [7]: print(ds_custom.config["experiment"])
 
 
+RTDCWriter feature writing:
+###########################
+
+1. Simple feature writing (append mode):
+
+.. ipython::
+
+    In [4]: with dclab.RTDCWriter("my-data.rtdc", mode="append") as hw:
+       ...:     hw.store_feature("deform", np.random.rand(100))
+
+    In [5]: ds_custom = dclab.new_dataset("my-data.rtdc")
+
+    In [6]: print(ds_custom.features)
+
+
+2. Advanced feature writing (replace mode):
+
+.. ipython::
+
+    In [4]: with dclab.RTDCWriter("my-data.rtdc", mode="replace") as hw:
+       ...:     hw.store_feature("deform", np.random.rand(100))
+
+    In [5]: ds_custom = dclab.new_dataset("my-data.rtdc")
+
+    In [6]: print(ds_custom.features)
+
 .. _sec_av_dc_io_copy:
 
 Copying (parts of) a dataset
