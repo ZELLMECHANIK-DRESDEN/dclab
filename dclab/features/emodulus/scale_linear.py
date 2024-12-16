@@ -1,47 +1,60 @@
 """Scale conversion applicable to a linear elastic model"""
+from __future__ import annotations
 
 import warnings
 
 import numpy as np
+import numpy.typing as npt
 
 
-def convert(area_um, deform, channel_width_in, channel_width_out,
-            emodulus=None, flow_rate_in=None, flow_rate_out=None,
-            viscosity_in=None, viscosity_out=None, inplace=False):
+def convert(area_um: npt.NDArray,
+            deform: npt.NDArray,
+            channel_width_in: float,
+            channel_width_out: float,
+            emodulus: npt.NDArray = None,
+            flow_rate_in: float = None,
+            flow_rate_out: float = None,
+            viscosity_in: float = None,
+            viscosity_out: float | npt.NDArray = None,
+            inplace: bool = False
+            ) -> (
+        tuple[npt.NDArray, npt.NDArray] |
+        tuple[npt.NDArray, npt.NDArray, npt.NDArray]
+):
     """convert area-deformation-emodulus triplet
 
     The conversion formula is described in :cite:`Mietke2015`.
 
     Parameters
     ----------
-    area_um: ndarray
+    area_um
         Convex cell area [µm²]
-    deform: ndarray
+    deform
         Deformation
-    channel_width_in: float
+    channel_width_in
         Original channel width [µm]
-    channel_width_out: float
+    channel_width_out
         Target channel width [µm]
-    emodulus: ndarray
+    emodulus
         Young's Modulus [kPa]
-    flow_rate_in: float
+    flow_rate_in
         Original flow rate [µL/s]
-    flow_rate_out: float
+    flow_rate_out
         Target flow rate [µL/s]
-    viscosity_in: float
+    viscosity_in
         Original viscosity [mPa*s]
-    viscosity_out: float or ndarray
+    viscosity_out
         Target viscosity [mPa*s]; This can be an array
-    inplace: bool
+    inplace
         If True, override input arrays with corrected data
 
     Returns
     -------
-    area_um_corr: ndarray
+    area_um_corr
         Corrected cell area [µm²]
-    deform_corr: ndarray
+    deform_corr
         Deformation (a copy if `inplace` is False)
-    emodulus_corr: ndarray
+    emodulus_corr
         Corrected emodulus [kPa]; only returned if `emodulus` is given.
 
     Notes
@@ -81,8 +94,11 @@ def convert(area_um, deform, channel_width_in, channel_width_out,
         return area_um_corr, deform_corr, emodulus_corr
 
 
-def scale_area_um(area_um, channel_width_in, channel_width_out, inplace=False,
-                  **kwargs):
+def scale_area_um(area_um: npt.NDArray,
+                  channel_width_in: float,
+                  channel_width_out: float,
+                  inplace: bool = False,
+                  **kwargs) -> npt.NDArray:
     """Perform scale conversion for area_um (linear elastic model)
 
     The area scales with the characteristic length
@@ -94,20 +110,20 @@ def scale_area_um(area_um, channel_width_in, channel_width_out, inplace=False,
 
     Parameters
     ----------
-    area_um: ndarray
+    area_um
         Convex area [µm²]
-    channel_width_in: float
+    channel_width_in
         Original channel width [µm]
-    channel_width_out: float
+    channel_width_out
         Target channel width [µm]
-    inplace: bool
+    inplace
         If True, override input arrays with corrected data
-    kwargs:
+    kwargs
         not used
 
     Returns
     -------
-    area_um_corr: ndarray
+    area_um_corr
         Scaled area [µm²]
     """
     copy = not inplace
@@ -120,9 +136,14 @@ def scale_area_um(area_um, channel_width_in, channel_width_out, inplace=False,
     return area_um_corr
 
 
-def scale_emodulus(emodulus, channel_width_in, channel_width_out,
-                   flow_rate_in, flow_rate_out, viscosity_in,
-                   viscosity_out, inplace=False):
+def scale_emodulus(emodulus: npt.NDArray,
+                   channel_width_in: float,
+                   channel_width_out: float,
+                   flow_rate_in: float,
+                   flow_rate_out: float,
+                   viscosity_in: float,
+                   viscosity_out: float | npt.NDArray,
+                   inplace: bool = False) -> npt.NDArray:
     """Perform scale conversion for area_um (linear elastic model)
 
     The conversion formula is described in :cite:`Mietke2015`.
@@ -131,26 +152,26 @@ def scale_emodulus(emodulus, channel_width_in, channel_width_out,
 
     Parameters
     ----------
-    emodulus: ndarray
+    emodulus
         Young's Modulus [kPa]
-    channel_width_in: float
+    channel_width_in
         Original channel width [µm]
-    channel_width_out: float
+    channel_width_out
         Target channel width [µm]
-    flow_rate_in: float
+    flow_rate_in
         Original flow rate [µL/s]
-    flow_rate_out: float
+    flow_rate_out
         Target flow rate [µL/s]
-    viscosity_in: float
+    viscosity_in
         Original viscosity [mPa*s]
-    viscosity_out: float or ndarray
+    viscosity_out
         Target viscosity [mPa*s]; This can be an array
-    inplace: bool
+    inplace
         If True, override input arrays with corrected data
 
     Returns
     -------
-    emodulus_corr: ndarray
+    emodulus_corr
         Scaled emodulus [kPa]
     """
     copy = not inplace
@@ -182,7 +203,10 @@ def scale_emodulus(emodulus, channel_width_in, channel_width_out,
     return emodulus_corr
 
 
-def scale_feature(feat, data, inplace=False, **scale_kw):
+def scale_feature(feat: str,
+                  data: float | npt.NDArray,
+                  inplace: bool = False,
+                  **scale_kw) -> npt.NDArray:
     """Convenience function for scale conversions (linear elastic model)
 
     This method wraps around all the other scale_* methods and also
@@ -190,13 +214,13 @@ def scale_feature(feat, data, inplace=False, **scale_kw):
 
     Parameters
     ----------
-    feat: str
+    feat
         Valid scalar feature name
-    data: float or ndarray
+    data
         Feature data
-    inplace: bool
+    inplace
         If True, override input arrays with corrected data
-    **scale_kw:
+    **scale_kw
         Scale keyword arguments for the wrapped methods
     """
     if feat == "area_um":
@@ -212,8 +236,11 @@ def scale_feature(feat, data, inplace=False, **scale_kw):
         raise KeyError("No recipe to scale feature '{}'!".format(feat))
 
 
-def scale_volume(volume, channel_width_in, channel_width_out, inplace=False,
-                 **kwargs):
+def scale_volume(volume: npt.NDArray,
+                 channel_width_in: float,
+                 channel_width_out: float,
+                 inplace: bool = False,
+                 **kwargs) -> npt.NDArray:
     """Perform scale conversion for volume (linear elastic model)
 
     The volume scales with the characteristic length
@@ -223,20 +250,20 @@ def scale_volume(volume, channel_width_in, channel_width_out, inplace=False,
 
     Parameters
     ----------
-    volume: ndarray
+    volume
         Volume [µm³]
-    channel_width_in: float
+    channel_width_in
         Original channel width [µm]
-    channel_width_out: float
+    channel_width_out
         Target channel width [µm]
-    inplace: bool
+    inplace
         If True, override input arrays with corrected data
-    kwargs:
+    kwargs
         not used
 
     Returns
     -------
-    volume_corr: ndarray
+    volume_corr
         Scaled volume [µm³]
     """
     copy = not inplace

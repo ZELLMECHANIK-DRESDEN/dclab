@@ -1,6 +1,7 @@
 0.62.8
  - docs: formatting typo (#270)
 0.62.7
+ - docs: type hinted the features sub-module
  - fix: IntegrityChecker must not load basins
  - fix: KeyError in IntegrityChecker when "basin_events" group missing (#268)
  - fix: warn user about missing internal basin features while still loading

@@ -2,10 +2,18 @@
 Computation of the 10th and 90th percentile of grayscale values inside the
 RT-DC event image mask with background-correction taken into account.
 """
+from __future__ import annotations
+
 import numpy as np
+import numpy.typing as npt
 
 
-def get_bright_perc(mask, image, image_bg, bg_off=None):
+def get_bright_perc(mask: npt.NDArray[bool] | list[npt.NDArray[bool]],
+                    image: npt.NDArray | list[npt.NDArray],
+                    image_bg: npt.NDArray | list[npt.NDArray],
+                    bg_off: float | npt.NDArray = None
+                    ) -> (tuple[float, float] |
+                          tuple[npt.NDArray, npt.NDArray]):
     """Compute 10th and 90th percentile of the bg-corrected event brightness
 
     The background-corrected event brightness is defined by the
@@ -29,7 +37,7 @@ def get_bright_perc(mask, image, image_bg, bg_off=None):
     -------
     bright_perc_10: float or ndarray of size N
         10th percentile of brightness
-    bright_perc_10: float or ndarray of size N
+    bright_perc_90: float or ndarray of size N
         90th percentile of brightness
     """
     if isinstance(mask, np.ndarray) and len(mask.shape) == 2:

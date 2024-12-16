@@ -7,6 +7,7 @@ from typing import Literal
 import warnings
 
 import numpy as np
+import numpy.typing as npt
 import scipy.interpolate as spint
 
 from ...warn import PipelineWarning
@@ -17,7 +18,6 @@ from .pxcorr import get_pixelation_delta_pair  # noqa: F401
 from .scale_linear import convert  # noqa: F401
 from .scale_linear import scale_emodulus, scale_feature
 from .viscosity import get_viscosity
-
 
 #: Set this to True to globally enable spline extrapolation when the
 #: `area_um`/`deform` data are outside the LUT. This is discouraged and
@@ -33,8 +33,13 @@ class YoungsModulusLookupTableExceededWarning(PipelineWarning):
     pass
 
 
-def extrapolate_emodulus(lut, datax, deform, emod, deform_norm,
-                         deform_thresh=.05, inplace=True):
+def extrapolate_emodulus(lut: npt.NDArray,
+                         datax: npt.NDArray,
+                         deform: npt.NDArray,
+                         emod: npt.NDArray,
+                         deform_norm: float,
+                         deform_thresh: float = .05,
+                         inplace: bool = True) -> npt.NDArray:
     """Use spline interpolation to fill in nan-values
 
     When points (`datax`, `deform`) are outside the convex
@@ -56,21 +61,21 @@ def extrapolate_emodulus(lut, datax, deform, emod, deform_norm,
         points, second axis enumerates datax, deform, and emodulus)
     datax: ndarray of size N
         The normalized x data (corresponding to `lut[:, 0]`)
-    deform: ndarray of size N
-        The normalized deform (corresponding to `lut[:, 1]`)
     emod: ndarray of size N
         The emodulus (corresponding to `lut[:, 2]`); If `emod`
         does not contain nan-values, there is nothing to do here.
-    deform_norm: float
+    deform: ndarray of size N
+        The normalized deform (corresponding to `lut[:, 1]`)
+    deform_norm
         The normalization value used to normalize `lut[:, 1]` and
         `deform`.
-    deform_thresh: float
+    deform_thresh
         Not the entire LUT is used for bivariate spline interpolation.
         Only the points where `lut[:, 1] > deform_thresh/deform_norm`
         are used. This is necessary, because for small deformations,
         the LUT has an extreme slope that kills any meaningful
         spline interpolation.
-    inplace: bool
+    inplace
         If True (default), replaces nan values in `emod` in-place.
         If False, `emod` is not modified.
     """
@@ -99,48 +104,49 @@ def extrapolate_emodulus(lut, datax, deform, emod, deform_norm,
     return emod
 
 
-def get_emodulus(deform: float | np.array,
-                 area_um: float | np.array | None = None,
-                 volume: float | np.array | None = None,
+def get_emodulus(deform: float | npt.NDArray,
+                 area_um: float | npt.NDArray | None = None,
+                 volume: float | npt.NDArray | None = None,
                  medium: float | str = "0.49% MC-PBS",
                  channel_width: float = 20.0,
                  flow_rate: float = 0.16,
                  px_um: float = 0.34,
-                 temperature: float | np.ndarray | None = 23.0,
-                 lut_data: str | pathlib.Path | np.ndarray = "LE-2D-FEM-19",
+                 temperature: float | npt.NDArray | None = 23.0,
+                 lut_data: (str | pathlib.Path |
+                            tuple[npt.NDArray, dict]) = "LE-2D-FEM-19",
                  visc_model: Literal['herold-2017',
                                      'herold-2017-fallback',
                                      'buyukurganci-2022',
                                      'kestin-1978',
                                      None] = "herold-2017-fallback",
                  extrapolate: bool = INACCURATE_SPLINE_EXTRAPOLATION,
-                 copy: bool = True):
+                 copy: bool = True) -> npt.NDArray:
     """Compute apparent Young's modulus using a look-up table
 
     Parameters
     ----------
-    area_um: float or ndarray
+    area_um
         Apparent (2D image) area [µm²] of the event(s)
-    deform: float or ndarray
+    deform
         Deformation (1-circularity) of the event(s)
-    volume: float or ndarray
+    volume
         Apparent volume of the event(s). It is not possible to define
         `volume` and `area_um` at the same time (makes no sense).
 
         .. versionadded:: 0.25.0
-    medium: str or float
+    medium
         The medium to compute the viscosity for. If a string
         is given, the viscosity is computed. If a float is given,
         this value is used as the viscosity in mPa*s (Note that
         `temperature` and `visc_model` must be set to None in this case).
-    channel_width: float
+    channel_width
         The channel width [µm]
-    flow_rate: float
+    flow_rate
         Flow rate [µL/s]
-    px_um: float
+    px_um
         The detector pixel size [µm] used for pixelation correction.
         Set to zero to disable.
-    temperature: float, ndarray, or None
+    temperature
         Temperature [°C] of the event(s)
     lut_data: path, str, or tuple of (np.ndarray of shape (N, 3), dict)
         The LUT data to use. If it is a built-in identifier,
@@ -150,13 +156,13 @@ def get_emodulus(deform: float | np.array,
         (e.g. `area_um` and `deform`) are valid interpolation choices.
 
         .. versionadded:: 0.25.0
-    visc_model: str
+    visc_model
         The viscosity model to use,
         see :func:`dclab.features.emodulus.viscosity.get_viscosity`
-    extrapolate: bool
+    extrapolate
         Perform extrapolation using :func:`extrapolate_emodulus`. This
         is discouraged!
-    copy: bool
+    copy
         Copy input arrays. If set to false, input arrays are
         overridden.
 
@@ -326,7 +332,7 @@ def get_emodulus(deform: float | np.array,
     return emod
 
 
-def normalize(data, dmax):
+def normalize(data: npt.NDArray, dmax: float) -> npt.NDArray:
     """Perform normalization in-place for interpolation
 
     Note that :func:`scipy.interpolate.griddata` has a `rescale`

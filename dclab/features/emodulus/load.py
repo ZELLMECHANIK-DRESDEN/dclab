@@ -12,6 +12,7 @@ import importlib_resources
 import warnings
 
 import numpy as np
+import numpy.typing as npt
 
 from ... import definitions as dfn
 
@@ -24,7 +25,7 @@ EXTERNAL_LUTS = {}
 
 
 @functools.lru_cache()
-def get_internal_lut_names_dict():
+def get_internal_lut_names_dict() -> dict:
     """Return list of internal lut names"""
     lutfiles = {}
     for pp in importlib_resources.files('dclab.features.emodulus').iterdir():
@@ -34,7 +35,7 @@ def get_internal_lut_names_dict():
     return lutfiles
 
 
-def get_lut_path(path_or_id):
+def get_lut_path(path_or_id: str | pathlib.Path) -> pathlib.Path:
     """Find the path to a LUT
 
     path_or_id: str or pathlib.Path
@@ -63,7 +64,8 @@ def get_lut_path(path_or_id):
     return lut_path
 
 
-def load_lut(lut_data: str | pathlib.Path | np.ndarray = "LE-2D-FEM-19"):
+def load_lut(lut_data: str | pathlib.Path | tuple[npt.NDArray, dict] =
+             "LE-2D-FEM-19") -> tuple[npt.NDArray, dict]:
     """Load LUT data from disk
 
     Parameters
@@ -98,7 +100,7 @@ def load_lut(lut_data: str | pathlib.Path | np.ndarray = "LE-2D-FEM-19"):
     return lut, meta
 
 
-def load_mtext(path):
+def load_mtext(path: str | pathlib.Path) -> tuple[npt.NDArray, dict]:
     """Load column-based data from text files with metadata
 
     This file format is used for isoelasticity lines and look-up
@@ -217,7 +219,7 @@ def load_mtext(path):
     return data, meta
 
 
-def register_lut(path, identifier=None):
+def register_lut(path: str | pathlib.Path, identifier: str = None) -> None:
     """Register an external LUT file in dclab
 
     This will add it to :const:`EXTERNAL_LUTS`, which is required

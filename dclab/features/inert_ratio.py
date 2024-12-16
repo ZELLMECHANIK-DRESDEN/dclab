@@ -1,11 +1,14 @@
 """Computation of inertia ratio from contour data"""
+from __future__ import annotations
+
 import numpy as np
+import numpy.typing as npt
 import scipy.spatial as ssp
 
 
-def cont_moments_cv(cont,
-                    flt_epsilon=1.19209e-07,
-                    dbl_epsilon=2.2204460492503131e-16):
+def cont_moments_cv(cont: npt.NDArray,
+                    flt_epsilon: float = 1.19209e-07,
+                    dbl_epsilon: float = 2.2204460492503131e-16) -> dict:
     """Compute the moments of a contour
 
     The moments are computed in the same way as they are computed
@@ -13,11 +16,11 @@ def cont_moments_cv(cont,
 
     Parameters
     ----------
-    cont: array of shape (N,2)
+    cont: shape (N,2)
         The contour for which to compute the moments.
-    flt_epsilon: float
+    flt_epsilon
         The value of ``FLT_EPSILON`` in OpenCV/gcc.
-    dbl_epsilon: float
+    dbl_epsilon
         The value of ``DBL_EPSILON`` in OpenCV/gcc.
 
     .. versionchanged:: 0.48.2
@@ -28,7 +31,7 @@ def cont_moments_cv(cont,
 
     Returns
     -------
-    moments: dict
+    moments
         A dictionary of moments. If the moment `m00` is smaller
         than half of `flt_epsilon`, `None` is returned.
     """
@@ -120,7 +123,8 @@ def cont_moments_cv(cont,
         return None
 
 
-def get_inert_ratio_cvx(cont):
+def get_inert_ratio_cvx(
+        cont: npt.NDArray | list[npt.NDArray]) -> float | npt.NDArray:
     """Compute the inertia ratio of the convex hull of a contour
 
     The inertia ratio is computed from the central second order of moments
@@ -190,7 +194,8 @@ def get_inert_ratio_cvx(cont):
     return inert_ratio_cvx
 
 
-def get_inert_ratio_prnc(cont):
+def get_inert_ratio_prnc(
+        cont: npt.NDArray | list[npt.NDArray]) -> float | npt.NDArray:
     """Compute principal inertia ratio of a contour
 
     The principal inertia ratio is rotation-invariant, which
@@ -256,7 +261,8 @@ def get_inert_ratio_prnc(cont):
     return inert_ratio_prnc
 
 
-def get_inert_ratio_raw(cont):
+def get_inert_ratio_raw(
+        cont: npt.NDArray | list[npt.NDArray]) -> float | npt.NDArray:
     """Compute the inertia ratio of a contour
 
     The inertia ratio is computed from the central second order of moments
@@ -321,7 +327,8 @@ def get_inert_ratio_raw(cont):
     return inert_ratio_raw
 
 
-def get_tilt(cont):
+def get_tilt(
+        cont: npt.NDArray | list[npt.NDArray]) -> float | npt.NDArray:
     """Compute tilt of raw contour relative to channel axis
 
     Parameters

@@ -298,7 +298,6 @@ def test_af_emodulus_temp_feat_with_basin():
         )
 
     with dclab.new_dataset(path) as ds:
-
         ds.config["calculation"] = {"emodulus lut": "LE-2D-FEM-19",
                                     "emodulus viscosity model": "herold-2017",
                                     "emodulus medium": "CellCarrier",
@@ -583,6 +582,14 @@ def test_pixelation_correction_volume():
                                           data_absc=100,
                                           px_um=0.34)
     assert np.allclose(ddelt, 0.011464479831134636)
+
+
+def test_pixelation_correction_volume_ndarray_input():
+    ddelt = emodulus.get_pixelation_delta(feat_corr="deform",
+                                          feat_absc="volume",
+                                          data_absc=np.array([100, 100, 90]),
+                                          px_um=0.34)
+    assert np.allclose(ddelt, np.array([0.01146448, 0.01146448, 0.01199665]))
 
 
 def test_register_external_lut():

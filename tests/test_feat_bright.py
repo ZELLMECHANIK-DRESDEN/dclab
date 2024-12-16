@@ -77,3 +77,25 @@ def test_simple_bright():
             avg, get_bright(mask=mask, image=image, ret_data="avg"))
         assert np.allclose(
             std, get_bright(mask=mask, image=image, ret_data="sd"))
+
+
+def test_list_input_bright():
+    """Use the list of np.ndarray as input."""
+    pytest.importorskip("nptdms")
+    ds = new_dataset(retrieve_data("fmt-tdms_fl-image-bright_2017.zip"))
+    # This stripped dataset has only 7 video frames / contours
+    image, mask, bright_avg, bright_sd = [], [], [], []
+    for ii in range(2, 7):
+        image.append(ds["image"][ii])
+        mask.append(ds["mask"][ii])
+        bright_avg.append(ds["bright_avg"][ii])
+        bright_sd.append(ds["bright_sd"][ii])
+
+    avg, std = get_bright(mask=mask, image=image, ret_data="avg,sd")
+    assert np.allclose(avg, bright_avg)
+    assert np.allclose(std, bright_sd)
+    # cover single `ret_data` input
+    assert np.allclose(
+        avg, get_bright(mask=mask, image=image, ret_data="avg"))
+    assert np.allclose(
+        std, get_bright(mask=mask, image=image, ret_data="sd"))

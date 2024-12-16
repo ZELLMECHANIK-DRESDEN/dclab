@@ -1,9 +1,12 @@
 """Pixelation correction definitions"""
+from __future__ import annotations
 
 import numpy as np
+import numpy.typing as npt
 
 
-def corr_deform_with_area_um(area_um, px_um=0.34):
+def corr_deform_with_area_um(area_um: float | npt.NDArray,
+                             px_um: float = 0.34) -> float | npt.NDArray:
     """Deformation correction for area_um-deform data
 
     The contour in RT-DC measurements is computed on a
@@ -14,14 +17,14 @@ def corr_deform_with_area_um(area_um, px_um=0.34):
 
     Parameters
     ----------
-    area_um: float or ndarray
+    area_um
         Apparent (2D image) area in µm² of the event(s)
-    px_um: float
+    px_um
         The detector pixel size in µm.
 
     Returns
     -------
-    deform_delta: float or ndarray
+    deform_delta
         Error of the deformation of the event(s) that must be
         subtracted from `deform`.
         deform_corr = deform -  deform_delta
@@ -46,7 +49,8 @@ def corr_deform_with_area_um(area_um, px_um=0.34):
     return delta
 
 
-def corr_deform_with_volume(volume, px_um=0.34):
+def corr_deform_with_volume(volume: float | npt.NDArray,
+                            px_um: float = 0.34) -> float | npt.NDArray:
     """Deformation correction for volume-deform data
 
     The contour in RT-DC measurements is computed on a
@@ -57,14 +61,14 @@ def corr_deform_with_volume(volume, px_um=0.34):
 
     Parameters
     ----------
-    volume: float or ndarray
+    volume
         The "volume" feature (rotation of raw contour) [µm³]
-    px_um: float
+    px_um
         The detector pixel size in µm.
 
     Returns
     -------
-    deform_delta: float or ndarray
+    deform_delta
         Error of the deformation of the event(s) that must be
         subtracted from `deform`.
         deform_corr = deform -  deform_delta
@@ -78,7 +82,13 @@ def corr_deform_with_volume(volume, px_um=0.34):
     return delta
 
 
-def get_pixelation_delta_pair(feat1, feat2, data1, data2, px_um=0.34):
+def get_pixelation_delta_pair(
+        feat1: str,
+        feat2: str,
+        data1: float | npt.NDArray,
+        data2: float | npt.NDArray,
+        px_um: float = 0.34) -> (tuple[float, float] |
+                                 tuple[npt.NDArray, npt.NDArray]):
     """Convenience function that returns pixelation correction pair"""
     # determine feature that defines abscissa
     feat_absc = feat1 if feat1 in ["area_um", "volume"] else feat2
@@ -97,17 +107,20 @@ def get_pixelation_delta_pair(feat1, feat2, data1, data2, px_um=0.34):
     return delt1, delt2
 
 
-def get_pixelation_delta(feat_corr, feat_absc, data_absc, px_um=0.34):
+def get_pixelation_delta(feat_corr: str,
+                         feat_absc: str,
+                         data_absc: float | npt.NDArray,
+                         px_um: float = 0.34) -> float | npt.NDArray:
     """Convenience function for obtaining pixelation correction
 
     Parameters
     ----------
-    feat_corr: str
+    feat_corr
         Feature for which to compute the pixelation correction
         (e.g. "deform")
-    feat_absc: str
+    feat_absc
         Feature with which to compute the correction (e.g. "area_um");
-    data_absc: ndarray or float
+    data_absc
         Corresponding data for `feat_absc`
     px_um: float
         Detector pixel size [µm]
